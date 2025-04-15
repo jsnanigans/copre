@@ -2,10 +2,19 @@ package copre
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"testing"
 )
 
 func TestVisualizePredictions(t *testing.T) {
+	// Disable log output for this test
+	originalOutput := log.Writer()
+	log.SetOutput(io.Discard)
+	t.Cleanup(func() {
+		log.SetOutput(originalOutput)
+	})
+
 	// Helper to create a simple prediction
 	makePred := func(text string, mappedPos int) PredictedChange {
 		return PredictedChange{TextToRemove: text, MappedPosition: mappedPos}
