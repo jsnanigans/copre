@@ -21,7 +21,6 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 
 	// 2. Analyze Diffs to get removed text (first block) and original change start position
 	charsRemoved, originalChangeStartPos := analyzeDiffs(oldText, diffs)
-	// _, _, _, _, _ = charsAdded, charsRemoved, prefix, affix, originalChangeStartPos // Old call signature
 
 	// 3. Find and Score Anchors based on removed text and local context comparison
 	// TODO: Adapt anchor finding/scoring for insertions/replacements

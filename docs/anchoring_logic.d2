@@ -1,0 +1,42 @@
+\
+# Direction: down
+# Layout: elk
+
+findAndScoreAnchors: {
+  shape: class
+  
+  # Inputs
+  inputs: {
+    oldText: string
+    searchText: string
+    originalChangeStartPos: int
+  }
+
+  # Processing Steps
+  find_occurrences: Find all occurrences of 'searchText' in 'oldText'
+  filter_original: Filter out occurrence at 'originalChangeStartPos'
+  
+  loop_candidates: For each remaining candidate occurrence {
+    determine_pos_line: Determine Position & Line #
+    extract_anchor_context: Extract Prefix & Affix for Anchor
+    extract_original_context: Extract Prefix & Affix for Original Pos
+    compare_context: Compare Anchor Context vs Original Context
+    calculate_score: Calculate Score (higher for better match)
+    create_anchor: Create Anchor {Position, Score, Line}
+  }
+
+  # Output
+  output: List[Anchor]
+
+  # Connections
+  inputs -> find_occurrences
+  find_occurrences -> filter_original
+  filter_original -> loop_candidates: Candidates
+  
+  loop_candidates.determine_pos_line -> loop_candidates.create_anchor
+  loop_candidates.extract_anchor_context -> loop_candidates.compare_context
+  loop_candidates.extract_original_context -> loop_candidates.compare_context
+  loop_candidates.compare_context -> loop_candidates.calculate_score
+  loop_candidates.calculate_score -> loop_candidates.create_anchor
+  loop_candidates.create_anchor -> output: Append Anchor
+} 
