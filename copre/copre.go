@@ -7,9 +7,20 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
+// PredictedChange represents a potential future edit.
+// Currently, it only supports deletions.
+// TODO: Support insertions and replacements.
+type PredictedChange struct {
+	Position     int    // Byte offset where the change should start
+	TextToRemove string // The text to be removed at the position
+	// TextToAdd string // Future: Text to add (for insertions/replacements)
+	Line  int // Line number where the change occurs (1-based)
+	Score int // Confidence score for this prediction
+}
+
 // PredictNextChanges analyzes the differences between oldText and newText
-// to predict the next likely change.
-func PredictNextChanges(oldText, newText string) (string, error) {
+// to predict the next likely changes.
+func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 	log.Printf("DEBUG: oldText:\n%s", oldText)
 	log.Printf("DEBUG: newText:\n%s", newText)
 
@@ -218,12 +229,29 @@ func PredictNextChanges(oldText, newText string) (string, error) {
 
 	log.Printf("DEBUG: Found Anchors: %+v", anchors)
 
-	// --- Prediction Logic (Placeholder) ---
-	// Based on the analysis (linesChanged, charsAdded, charsRemoved, prefix, affix),
-	// predict the next change. This part requires a more sophisticated model
-	// or heuristic.
+	// --- Prediction Logic ---
+	var predictions []PredictedChange
 
-	return "___not_implemented___", nil // Keep placeholder for now
+	// Convert anchors into predictions (currently only deletions)
+	for _, anchor := range anchors {
+		// TODO: Add threshold logic based on anchor.Score?
+		predictions = append(predictions, PredictedChange{
+			Position:     anchor.Position,
+			TextToRemove: charsRemoved, // Predict removing the same text found at the anchor
+			Line:         anchor.Line,
+			Score:        anchor.Score,
+		})
+	}
+
+	// Sort predictions by score (descending) - higher score is more likely
+	// TODO: Implement sorting if needed, or perhaps filter by score.
+	// sort.Slice(predictions, func(i, j int) bool {
+	// 	return predictions[i].Score > predictions[j].Score
+	// })
+
+	// --- Removed placeholder return ---
+	// return "___not_implemented___", nil // Keep placeholder for now
+	return predictions, nil
 }
 
 // contains checks if a slice contains an integer.
