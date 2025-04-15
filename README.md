@@ -1,4 +1,4 @@
-# copre (Contextual Presence) - Change Prediction Logic
+# copre (Contextual Prediction)
 
 This Go package analyzes differences between two versions of text (`oldText` and `newText`) to predict subsequent, similar changes. Currently, it focuses on predicting repeated *deletions*.
 
