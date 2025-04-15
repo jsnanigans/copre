@@ -4,6 +4,9 @@ import (
 	"log"
 	"strings"
 
+	// TODO: Add sorting import if needed later
+	// "sort"
+
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
@@ -11,11 +14,48 @@ import (
 // Currently, it only supports deletions.
 // TODO: Support insertions and replacements.
 type PredictedChange struct {
-	Position     int    // Byte offset where the change should start
-	TextToRemove string // The text to be removed at the position
+	Position     int    // Byte offset in oldText where the change originates
+	TextToRemove string // The text to be removed
 	// TextToAdd string // Future: Text to add (for insertions/replacements)
-	Line  int // Line number where the change occurs (1-based)
-	Score int // Confidence score for this prediction
+	Line           int // Line number in oldText where the change originates (1-based)
+	Score          int // Confidence score for this prediction
+	MappedPosition int // Corresponding byte offset in newText where the change should be applied
+}
+
+// mapPosition translates a byte offset from oldText to its corresponding offset in newText
+// based on the provided diffs.
+func mapPosition(oldPos int, diffs []diffmatchpatch.Diff) int {
+	currentOldPos := 0
+	currentNewPos := 0
+
+	for _, diff := range diffs {
+		diffLen := len(diff.Text)
+		switch diff.Type {
+		case diffmatchpatch.DiffDelete:
+			// If the old position is within the deleted section,
+			// map it to the position right before the deletion in the new text.
+			if oldPos >= currentOldPos && oldPos < currentOldPos+diffLen {
+				return currentNewPos
+			}
+			currentOldPos += diffLen
+		case diffmatchpatch.DiffInsert:
+			currentNewPos += diffLen
+		case diffmatchpatch.DiffEqual:
+			// If the old position is within this equal section, calculate the corresponding new position.
+			if oldPos >= currentOldPos && oldPos < currentOldPos+diffLen {
+				return currentNewPos + (oldPos - currentOldPos)
+			}
+			currentOldPos += diffLen
+			currentNewPos += diffLen
+		}
+	}
+	// If the position is after all diffs (e.g., at the very end of the old text),
+	// return the end position of the new text.
+	if oldPos >= currentOldPos {
+		return currentNewPos
+	}
+	// Should ideally not be reached if oldPos is valid, but return currentNewPos as fallback.
+	return currentNewPos
 }
 
 // PredictNextChanges analyzes the differences between oldText and newText
@@ -136,9 +176,9 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 
 	// --- Anchor Finding and Scoring ---
 	type Anchor struct {
-		Position int
+		Position int // Position in oldText
 		Score    int
-		Line     int // Add line number for better context
+		Line     int // Line number in oldText
 	}
 	var anchors []Anchor
 	originalChangeStartPos := -1 // Track the start position of the original change in oldText
@@ -167,11 +207,14 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 	log.Printf("DEBUG: Original change start position: %d", originalChangeStartPos)
 
 	// Only search for anchors if something was actually removed
+	// TODO: Refine anchor finding for insertions/replacements
 	if len(charsRemoved) > 0 && originalChangeStartPos != -1 {
 		searchStart := 0
+		searchText := charsRemoved
+
 		for {
-			// Find next occurrence of the removed text
-			foundPos := strings.Index(oldText[searchStart:], charsRemoved)
+			// Find next occurrence of the search text
+			foundPos := strings.Index(oldText[searchStart:], searchText)
 			if foundPos == -1 {
 				break // No more occurrences
 			}
@@ -190,8 +233,9 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 			// Calculate line number for the anchor
 			anchorLine := 1 + strings.Count(oldText[:anchorPos], "\n")
 
-			// Initialize anchor with base score for matching removed text
-			anchor := Anchor{Position: anchorPos, Score: 5, Line: anchorLine}
+			// Initialize anchor with base score
+			baseScore := 5 // Base score for matching removed text
+			anchor := Anchor{Position: anchorPos, Score: baseScore, Line: anchorLine}
 
 			// Score based on prefix matching (inside-out)
 			for i := 1; i <= len(prefix); i++ {
@@ -199,20 +243,17 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 				if prefixMatchPos >= 0 && oldText[prefixMatchPos:anchorPos] == prefix[len(prefix)-i:] {
 					anchor.Score++
 				} else {
-					// Stop prefix scoring if a longer match fails
-					// (We could make this more lenient, but strict for now)
 					break
 				}
 			}
 
 			// Score based on affix matching (inside-out)
-			affixStartPos := anchorPos + len(charsRemoved)
+			affixCheckStartPos := anchorPos + len(charsRemoved) // Position right after the potential removal
 			for i := 1; i <= len(affix); i++ {
-				affixMatchEndPos := affixStartPos + i
-				if affixMatchEndPos <= len(oldText) && oldText[affixStartPos:affixMatchEndPos] == affix[:i] {
+				affixMatchEndPos := affixCheckStartPos + i
+				if affixMatchEndPos <= len(oldText) && oldText[affixCheckStartPos:affixMatchEndPos] == affix[:i] {
 					anchor.Score++
 				} else {
-					// Stop affix scoring if a longer match fails
 					break
 				}
 			}
@@ -233,15 +274,30 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 	var predictions []PredictedChange
 
 	// Convert anchors into predictions (currently only deletions)
-	for _, anchor := range anchors {
-		// TODO: Add threshold logic based on anchor.Score?
-		predictions = append(predictions, PredictedChange{
-			Position:     anchor.Position,
-			TextToRemove: charsRemoved, // Predict removing the same text found at the anchor
-			Line:         anchor.Line,
-			Score:        anchor.Score,
-		})
+	if len(charsRemoved) > 0 { // Only generate deletion predictions if something was removed
+		for _, anchor := range anchors {
+			// Map the anchor position (oldText) to the corresponding position in newText
+			mappedPos := mapPosition(anchor.Position, diffs)
+
+			// Basic check: Ensure the text to remove actually exists at the mapped position in the new text.
+			// This prevents errors if the mapping is complex or the surrounding context changed drastically.
+			if mappedPos+len(charsRemoved) <= len(newText) && newText[mappedPos:mappedPos+len(charsRemoved)] == charsRemoved {
+				predictions = append(predictions, PredictedChange{
+					Position:       anchor.Position, // Keep original position for reference
+					TextToRemove:   charsRemoved,
+					Line:           anchor.Line, // Line number in oldText
+					Score:          anchor.Score,
+					MappedPosition: mappedPos, // Position in newText
+				})
+			} else {
+				log.Printf("WARN: Skipping prediction at oldPos %d (mapped to %d) because '%s' not found in newText at that location.",
+					anchor.Position, mappedPos, charsRemoved)
+			}
+		}
 	}
+	// TODO: Add logic for insertions/replacements
+
+	log.Printf("DEBUG: Generated Predictions: %+v", predictions) // Log predictions including mapped positions
 
 	// Sort predictions by score (descending) - higher score is more likely
 	// TODO: Implement sorting if needed, or perhaps filter by score.
@@ -249,8 +305,6 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 	// 	return predictions[i].Score > predictions[j].Score
 	// })
 
-	// --- Removed placeholder return ---
-	// return "___not_implemented___", nil // Keep placeholder for now
 	return predictions, nil
 }
 
