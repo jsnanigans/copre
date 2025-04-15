@@ -123,6 +123,101 @@ func PredictNextChanges(oldText, newText string) (string, error) {
 	log.Printf("DEBUG: Prefix context: %q", prefix)
 	log.Printf("DEBUG: Affix context: %q", affix)
 
+	// --- Anchor Finding and Scoring ---
+	type Anchor struct {
+		Position int
+		Score    int
+		Line     int // Add line number for better context
+	}
+	var anchors []Anchor
+	originalChangeStartPos := -1 // Track the start position of the original change in oldText
+
+	// Need to find the *actual* start position of the first change that contributed to the current context
+	tempOldPos := 0
+	firstChangePosFound := false
+	for _, diff := range diffs {
+		switch diff.Type {
+		case diffmatchpatch.DiffDelete:
+			if !firstChangePosFound {
+				originalChangeStartPos = tempOldPos
+				firstChangePosFound = true
+			}
+			tempOldPos += len(diff.Text)
+		case diffmatchpatch.DiffInsert:
+			if !firstChangePosFound {
+				originalChangeStartPos = tempOldPos
+				firstChangePosFound = true
+			}
+			// No change in tempOldPos for insert
+		case diffmatchpatch.DiffEqual:
+			tempOldPos += len(diff.Text)
+		}
+	}
+	log.Printf("DEBUG: Original change start position: %d", originalChangeStartPos)
+
+	// Only search for anchors if something was actually removed
+	if len(charsRemoved) > 0 && originalChangeStartPos != -1 {
+		searchStart := 0
+		for {
+			// Find next occurrence of the removed text
+			foundPos := strings.Index(oldText[searchStart:], charsRemoved)
+			if foundPos == -1 {
+				break // No more occurrences
+			}
+
+			anchorPos := searchStart + foundPos // Absolute position in oldText
+
+			// Skip the original change location
+			if anchorPos == originalChangeStartPos {
+				searchStart = anchorPos + 1 // Start searching after this occurrence
+				if searchStart >= len(oldText) {
+					break
+				}
+				continue
+			}
+
+			// Calculate line number for the anchor
+			anchorLine := 1 + strings.Count(oldText[:anchorPos], "\n")
+
+			// Initialize anchor with base score for matching removed text
+			anchor := Anchor{Position: anchorPos, Score: 5, Line: anchorLine}
+
+			// Score based on prefix matching (inside-out)
+			for i := 1; i <= len(prefix); i++ {
+				prefixMatchPos := anchorPos - i
+				if prefixMatchPos >= 0 && oldText[prefixMatchPos:anchorPos] == prefix[len(prefix)-i:] {
+					anchor.Score++
+				} else {
+					// Stop prefix scoring if a longer match fails
+					// (We could make this more lenient, but strict for now)
+					break
+				}
+			}
+
+			// Score based on affix matching (inside-out)
+			affixStartPos := anchorPos + len(charsRemoved)
+			for i := 1; i <= len(affix); i++ {
+				affixMatchEndPos := affixStartPos + i
+				if affixMatchEndPos <= len(oldText) && oldText[affixStartPos:affixMatchEndPos] == affix[:i] {
+					anchor.Score++
+				} else {
+					// Stop affix scoring if a longer match fails
+					break
+				}
+			}
+
+			anchors = append(anchors, anchor)
+
+			// Move search start past the current find
+			searchStart = anchorPos + 1
+			if searchStart >= len(oldText) {
+				break
+			}
+		}
+	}
+
+	log.Printf("DEBUG: Found Anchors: %+v", anchors)
+
 	// --- Prediction Logic (Placeholder) ---
 	// Based on the analysis (linesChanged, charsAdded, charsRemoved, prefix, affix),
 	// predict the next change. This part requires a more sophisticated model

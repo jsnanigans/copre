@@ -8,12 +8,12 @@ import (
 )
 
 func main() {
-	oldText := `line 1
-line 2
-line 3`
-	newText := `line 1
+	oldText := `line one-smile
+line two-smile
+line 3-smile`
+	newText := `line one-smile
 line two
-line 3`
+line 3-smile`
 
 	prediction, err := copre.PredictNextChanges(oldText, newText)
 	if err != nil {
