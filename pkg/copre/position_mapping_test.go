@@ -84,6 +84,44 @@ func TestMapPosition(t *testing.T) {
 			diffs:      makeDiffsForPositionMapping([][2]interface{}{{diffmatchpatch.DiffEqual, "abc"}, {diffmatchpatch.DiffInsert, "XYZ"}}),
 			wantNewPos: 3 + 3, // End of "abcXYZ"
 		},
+		{
+			name:       "Old position is 0",
+			oldPos:     0,
+			diffs:      makeDiffsForPositionMapping([][2]interface{}{{diffmatchpatch.DiffInsert, "XYZ"}, {diffmatchpatch.DiffEqual, "abc"}}),
+			wantNewPos: 3, // Position 0 maps to 3 after insertion
+		},
+		{
+			name:       "Old position is 0 with delete",
+			oldPos:     0,
+			diffs:      makeDiffsForPositionMapping([][2]interface{}{{diffmatchpatch.DiffDelete, "ab"}, {diffmatchpatch.DiffEqual, "cde"}}),
+			wantNewPos: 0, // Position 0 is within deletion, maps to start of new text
+		},
+		{
+			name:   "Unicode characters",
+			oldPos: 10, // Byte position of second '界' in "abc 世界 def 世界 ghi"
+			diffs: makeDiffsForPositionMapping([][2]interface{}{
+				{diffmatchpatch.DiffEqual, "abc "},       // 4 bytes
+				{diffmatchpatch.DiffDelete, "世界 "},       // 7 bytes deleted (世界 is 6 bytes + space)
+				{diffmatchpatch.DiffEqual, "def 世界 ghi"}, // Remaining text
+			}),
+			// Original: abc 世界 def 世界 ghi
+			//               ^        ^
+			// bytes:      4       11
+			// oldPos 10 is the second byte of the first 世界
+			// Since it's in the deleted part, it maps to the end of the preceding equal part.
+			wantNewPos: 4, // Maps to end of "abc "
+		},
+		{
+			name:   "Position beyond original text length implied by diffs",
+			oldPos: 100, // Way past the end
+			diffs: makeDiffsForPositionMapping([][2]interface{}{
+				{diffmatchpatch.DiffEqual, "abc"},
+				{diffmatchpatch.DiffInsert, "XYZ"},
+				{diffmatchpatch.DiffEqual, "def"},
+			}),
+			// New text is "abcXYZdef", length 9
+			wantNewPos: 9, // Should map to the end of the new text
+		},
 	}
 
 	for _, tt := range tests {

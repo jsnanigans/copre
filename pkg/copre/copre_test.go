@@ -195,6 +195,29 @@ func TestPredictNextChanges(t *testing.T) {
 			expected:  []PredictedChange{}, // "delete ABC\n" doesn't repeat
 			expectErr: false,
 		},
+		{
+			name:      "Whitespace only change (indentation)",
+			oldText:   "line1\nline2",
+			newText:   "line1\n  line2", // Indented line 2
+			expected:  nil,              // No deletion, so no prediction
+			expectErr: false,
+		},
+		{
+			name: "Replacement change",
+			oldText: "replace OLD with new\n" +
+				"line 2\n" +
+				"replace OLD with new",
+			newText: "replace NEW with new\n" +
+				"line 2\n" +
+				"replace OLD with new",
+			// Diff will see "OLD" deleted at pos 8
+			expected: []PredictedChange{
+				// Anchor found at pos 30. Context prefix="replace ", affix=" with new"
+				// Score: 5 (base) + 8 (prefix) + 9 (affix) = 22
+				{Position: 30, TextToRemove: "OLD", Line: 3, Score: 22, MappedPosition: 30},
+			},
+			expectErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -213,13 +236,6 @@ func TestPredictNextChanges(t *testing.T) {
 
 			// Convert expected predictions for comparison if needed (if wantPreds was used)
 			var wantComparable []PredictedChange
-			// if len(tt.wantPreds) > 0 {
-			// 	for _, wp := range tt.wantPreds {
-			// 		wantComparable = append(wantComparable, PredictedChange{TextToRemove: wp.TextToRemove, MappedPosition: wp.MappedPosition})
-			// 	}
-			// } else {
-			// 	wantComparable = tt.expected
-			// }
 			wantComparable = tt.expected // Directly use the expected field now
 
 			if !reflect.DeepEqual(got, wantComparable) {

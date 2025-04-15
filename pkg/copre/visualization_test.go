@@ -101,6 +101,30 @@ func TestVisualizePredictions(t *testing.T) {
 			},
 			want: "hello", // Prediction should be skipped
 		},
+		{
+			name:        "Empty text input",
+			text:        "",
+			predictions: []PredictedChange{makePred("del", 0)},
+			want:        "", // Should return empty string
+		},
+		{
+			name:        "Empty TextToRemove in prediction",
+			text:        "hello world",
+			predictions: []PredictedChange{makePred("", 6)},
+			want:        "hello world", // Should not change the text
+		},
+		{
+			name:        "Multi-line text",
+			text:        "line1\nline2 del\nline3",
+			predictions: []PredictedChange{makePred(" del", 11)}, // " del" on line 2
+			want:        fmt.Sprintf("line1\nline2%s del%s\nline3", red, reset),
+		},
+		{
+			name:        "Unicode text",
+			text:        "abc 世界 def",                         // World in Chinese
+			predictions: []PredictedChange{makePred("世界", 4)}, // "世界" starts at byte 4
+			want:        fmt.Sprintf("abc %s世界%s def", red, reset),
+		},
 	}
 
 	for _, tt := range tests {

@@ -26,109 +26,101 @@ func TestAnalyzeDiffs(t *testing.T) {
 		newText                    string
 		wantCharsAdded             string
 		wantCharsRemoved           string
-		wantPrefix                 string
-		wantAffix                  string
 		wantOriginalChangeStartPos int
 	}{
 		{
 			name:                       "No change",
 			oldText:                    "hello world",
 			newText:                    "hello world",
-			wantCharsAdded:             "",
 			wantCharsRemoved:           "",
-			wantPrefix:                 "",
-			wantAffix:                  "",
 			wantOriginalChangeStartPos: -1, // No change occurred
 		},
 		{
 			name:                       "Single line insertion",
 			oldText:                    "hello world",
 			newText:                    "hello new world",
-			wantCharsAdded:             " new",
 			wantCharsRemoved:           "",
-			wantPrefix:                 "hello",
-			wantAffix:                  " world",
 			wantOriginalChangeStartPos: 5, // Position after "hello"
 		},
 		{
 			name:                       "Single line deletion",
 			oldText:                    "hello cruel world",
 			newText:                    "hello world",
-			wantCharsAdded:             "",
 			wantCharsRemoved:           " cruel",
-			wantPrefix:                 "hello",
-			wantAffix:                  " world",
 			wantOriginalChangeStartPos: 5, // Position after "hello"
 		},
 		{
 			name:                       "Single line replacement",
 			oldText:                    "hello old world",
 			newText:                    "hello new world",
-			wantCharsAdded:             "new",
 			wantCharsRemoved:           "old",
-			wantPrefix:                 "hello ",
-			wantAffix:                  " world",
 			wantOriginalChangeStartPos: 6, // Position after "hello "
 		},
 		{
 			name:                       "Multi-line insertion",
 			oldText:                    "line1\nline3",
 			newText:                    "line1\nline2\nline3",
-			wantCharsAdded:             "\nline2",
 			wantCharsRemoved:           "",
-			wantPrefix:                 "", // Context not captured across lines currently
-			wantAffix:                  "",
 			wantOriginalChangeStartPos: 5, // Position after "line1"
 		},
 		{
 			name:                       "Multi-line deletion",
 			oldText:                    "line1\nline2\nline3",
 			newText:                    "line1\nline3",
-			wantCharsAdded:             "",
 			wantCharsRemoved:           "\nline2",
-			wantPrefix:                 "", // Context not captured across lines currently
-			wantAffix:                  "",
 			wantOriginalChangeStartPos: 5, // Position after "line1"
 		},
 		{
 			name:                       "Multi-line replacement",
 			oldText:                    "line1\nlineOLD\nline3",
 			newText:                    "line1\nlineNEW\nline3",
-			wantCharsAdded:             "lineNEW", // Diff might show: delete "lineOLD", insert "lineNEW"
 			wantCharsRemoved:           "lineOLD", // So context is tricky.
-			wantPrefix:                 "",        // Likely no single-line context captured
-			wantAffix:                  "",
-			wantOriginalChangeStartPos: 6, // Start of "lineOLD"
+			wantOriginalChangeStartPos: 6,         // Start of "lineOLD"
 		},
 		{
 			name:                       "Change at start",
 			oldText:                    "old world",
 			newText:                    "new world",
-			wantCharsAdded:             "new",
 			wantCharsRemoved:           "old",
-			wantPrefix:                 "",
-			wantAffix:                  " world",
 			wantOriginalChangeStartPos: 0,
 		},
 		{
 			name:                       "Change at end",
 			oldText:                    "hello old",
 			newText:                    "hello new",
-			wantCharsAdded:             "new",
 			wantCharsRemoved:           "old",
-			wantPrefix:                 "hello ",
-			wantAffix:                  "",
 			wantOriginalChangeStartPos: 6,
 		},
 		{
 			name:                       "Multiple single line changes",
 			oldText:                    "rm A\nKeep\nrm B",
 			newText:                    "A\nKeep\nB",
-			wantCharsAdded:             "",    // Diffs are separate
 			wantCharsRemoved:           "rm ", // Only captures context of *first* change sequence
-			wantPrefix:                 "",
-			wantAffix:                  "A",
-			wantOriginalChangeStartPos: 0, // Position of first "rm "
+			wantOriginalChangeStartPos: 0,     // Position of first "rm "
+		},
+		{
+			name:                       "Empty old text",
+			oldText:                    "",
+			newText:                    "abc",
+			wantCharsAdded:             "abc",
+			wantCharsRemoved:           "",
+			wantOriginalChangeStartPos: 0,
+		},
+		{
+			name:                       "Empty new text",
+			oldText:                    "abc",
+			newText:                    "",
+			wantCharsAdded:             "",
+			wantCharsRemoved:           "abc",
+			wantOriginalChangeStartPos: 0,
+		},
+		{
+			name:                       "Both empty",
+			oldText:                    "",
+			newText:                    "",
+			wantCharsAdded:             "",
+			wantCharsRemoved:           "",
+			wantOriginalChangeStartPos: -1, // No change
 		},
 	}
 

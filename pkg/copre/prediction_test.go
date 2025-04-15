@@ -98,7 +98,49 @@ func TestGeneratePredictions(t *testing.T) {
 			diffs:        diffsMapFail,
 			wantPreds:    []PredictedChange{}, // Should be skipped
 		},
+		{
+			name:    "Prediction skipped (mapped position out of bounds)",
+			newText: "abc", // Very short new text
+			anchors: []Anchor{
+				// Assume this anchor existed in a longer oldText and maps beyond "abc"
+				{Position: 100, Score: 5, Line: 1},
+			},
+			charsRemoved: "xyz",
+			// Diffs that would cause position 100 to map outside len("abc")
+			diffs: makeDiffsForPrediction([][2]interface{}{
+				{diffmatchpatch.DiffDelete, "long text ..."},
+				{diffmatchpatch.DiffEqual, "abc"},
+				{diffmatchpatch.DiffDelete, "... more text"}, // Map position 100 to > 3
+			}),
+			wantPreds: []PredictedChange{}, // Skipped because mapped position is invalid
+		},
 	}
+
+	// Corrected Unicode Test Case Setup
+	oldTextUnicode := "abc 世界 def 世界 ghi"
+	newTextUnicode := "abc def 世界 ghi" // Removed first " 世界"
+	diffsUnicode := dmp.DiffMain(oldTextUnicode, newTextUnicode, true)
+	unicodeTest := struct { // Define outside the slice for easier setup
+		name         string
+		newText      string
+		anchors      []Anchor
+		charsRemoved string
+		diffs        []diffmatchpatch.Diff
+		wantPreds    []PredictedChange
+	}{
+		name:    "Unicode characters - Prediction Match",
+		newText: newTextUnicode,
+		anchors: []Anchor{
+			{Position: 13, Score: 8, Line: 1}, // Byte position of the ' ' before the second 世界
+		},
+		charsRemoved: " 世界", // What was actually removed
+		diffs:        diffsUnicode,
+		wantPreds: []PredictedChange{
+			// Anchor pos 13 maps to new pos 7. newText[7:] starts with " 世界"
+			{Position: 13, TextToRemove: " 世界", Line: 1, Score: 8, MappedPosition: 7},
+		},
+	}
+	tests = append(tests, unicodeTest) // Add the corrected test
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

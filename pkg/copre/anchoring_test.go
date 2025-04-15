@@ -198,3 +198,70 @@ func TestFindAndScoreAnchors_MultiLineContextMatch(t *testing.T) {
 		t.Errorf("findAndScoreAnchors() = %+v, want %+v", gotAnchors, wantAnchors)
 	}
 }
+
+func TestFindAndScoreAnchors_OldTextEmpty(t *testing.T) {
+	oldText := ""
+	searchText := "abc"
+	originalChangeStartPos := 0
+	wantAnchors := []Anchor{}
+
+	gotAnchors := findAndScoreAnchors(oldText, searchText, originalChangeStartPos)
+	sortAnchors(gotAnchors)
+	sortAnchors(wantAnchors)
+
+	if !reflect.DeepEqual(gotAnchors, wantAnchors) {
+		t.Errorf("findAndScoreAnchors() = %+v, want %+v", gotAnchors, wantAnchors)
+	}
+}
+
+func TestFindAndScoreAnchors_OriginalPosAtEnd(t *testing.T) {
+	// Original change: remove "end" at pos 10. Context: prefix=" ", affix=""
+	oldText := "start text end"
+	searchText := "end"
+	originalChangeStartPos := 11 // Position of 'e' in 'end'
+	wantAnchors := []Anchor{}    // No other instances of "end" to anchor to
+
+	gotAnchors := findAndScoreAnchors(oldText, searchText, originalChangeStartPos)
+	sortAnchors(gotAnchors)
+	sortAnchors(wantAnchors)
+
+	if !reflect.DeepEqual(gotAnchors, wantAnchors) {
+		t.Errorf("findAndScoreAnchors() = %+v, want %+v", gotAnchors, wantAnchors)
+	}
+}
+
+func TestFindAndScoreAnchors_OriginalPosOutOfBounds(t *testing.T) {
+	oldText := "abc abc"
+	searchText := "abc"
+	originalChangeStartPos := 100 // Out of bounds
+	wantAnchors := []Anchor{}     // Should not search if original pos is invalid
+
+	gotAnchors := findAndScoreAnchors(oldText, searchText, originalChangeStartPos)
+	sortAnchors(gotAnchors)
+	sortAnchors(wantAnchors)
+
+	if !reflect.DeepEqual(gotAnchors, wantAnchors) {
+		t.Errorf("findAndScoreAnchors() = %+v, want %+v", gotAnchors, wantAnchors)
+	}
+}
+
+func TestFindAndScoreAnchors_UnicodeCharacters(t *testing.T) {
+	// Original change: remove "โลก" at pos 12 (byte index). Context: prefix=" ", affix="!"
+	// Anchor @ 0: Context: prefix="", affix=" "
+	oldText := "โลก สวัสดี โลก!" // "World Hello World!" in Thai
+	searchText := "โลก"          // "World"
+	originalChangeStartPos := 12 // Byte index of the second "โลก"
+	wantAnchors := []Anchor{
+		// Score: 5 (base) + 0 (prefix "" vs " ") + 0 (affix " " vs "!") = 5
+		{Position: 0, Score: 5, Line: 1},
+		{Position: 29, Score: 5, Line: 1},
+	}
+
+	gotAnchors := findAndScoreAnchors(oldText, searchText, originalChangeStartPos)
+	sortAnchors(gotAnchors)
+	sortAnchors(wantAnchors)
+
+	if !reflect.DeepEqual(gotAnchors, wantAnchors) {
+		t.Errorf("findAndScoreAnchors() = %+v, want %+v", gotAnchors, wantAnchors)
+	}
+}
