@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/jsnanigans/copre/copre"
+	"github.com/jsnanigans/copre"
 )
 
 func main() {

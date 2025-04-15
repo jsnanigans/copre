@@ -1,26 +1,53 @@
 package copre
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 )
+
+// Helper function to sort predictions for stable comparison
+func sortPredictions(predictions []PredictedChange) {
+	sort.Slice(predictions, func(i, j int) bool {
+		// Primary sort by MappedPosition, secondary by Position for tie-breaking
+		if predictions[i].MappedPosition != predictions[j].MappedPosition {
+			return predictions[i].MappedPosition < predictions[j].MappedPosition
+		}
+		return predictions[i].Position < predictions[j].Position
+	})
+}
 
 func TestPredictNextChanges(t *testing.T) {
 	tests := []struct {
 		name      string
 		oldText   string
 		newText   string
-		expected  string
+		expected  []PredictedChange
 		expectErr bool
 	}{
 		{
-			name: "Simple text change",
+			name: "Simple text change - remove middle",
 			oldText: `line 1
-line 2
+line 2 middle bit
 line 3`,
 			newText: `line 1
-line two
+line 2
 line 3`,
-			expected:  "___not_implemented___",
+			expected:  []PredictedChange{},
+			expectErr: false,
+		},
+		{
+			name: "Simple text change - remove suffix (uses existing suffix test logic)",
+			oldText: `line one-foo
+line two-foo
+line 3-foo`,
+			newText: `line one-foo
+line two
+line 3-foo`,
+			expected: []PredictedChange{
+				{Position: 8, TextToRemove: "-foo", Line: 1, Score: 5, MappedPosition: 8},
+				{Position: 30, TextToRemove: "-foo", Line: 3, Score: 5, MappedPosition: 24},
+			},
 			expectErr: false,
 		},
 		{
@@ -30,79 +57,85 @@ line 3`,
 			newText: `line 1
 line 2
 line 3`,
-			expected:  "___not_implemented___",
+			expected:  []PredictedChange{},
 			expectErr: false,
 		},
 		{
 			name: "Remove line",
 			oldText: `line 1
-line 2
+line 2 removed
 line 3`,
 			newText: `line 1
 line 3`,
-			expected:  "___not_implemented___",
+			expected:  []PredictedChange{},
 			expectErr: false,
 		},
 		{
-			name: "Go code change",
-			oldText: `package main
-
-func main() {
-	fmt.Println("Hello")
-}`,
-			newText: `package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello, world!")
-}`,
-			expected:  "___not_implemented___",
+			name: "Remove multiple lines",
+			oldText: `AAA
+BBB
+CCC
+DDD
+BBB
+CCC
+EEE`,
+			newText: `AAA
+DDD
+BBB
+CCC
+EEE`,
+			expected: []PredictedChange{
+				{Position: 12, TextToRemove: "BBB\nCCC\n", Line: 5, Score: 5, MappedPosition: 8},
+			},
 			expectErr: false,
 		},
 		{
-			name: "Python code change",
-			oldText: `def greet(name):
-    print(f"Hello, {name}")`,
-			newText: `def greet(name):
-    greeting = f"Hello, {name}!"
-    print(greeting)`,
-			expected:  "___not_implemented___",
+			name: "Remove text block with similar surrounding context",
+			oldText: `keep start one
+remove this 1
+keep end one
+--
+keep start two
+remove this 2
+keep end two
+--
+keep start one
+remove this 1
+keep end one`,
+			newText: `keep start one
+keep end one
+--
+keep start two
+remove this 2
+keep end two
+--
+keep start one
+remove this 1
+keep end one`,
+			expected: []PredictedChange{
+				{Position: 88, TextToRemove: "remove this 1\n", Line: 9, Score: 7, MappedPosition: 74},
+			},
 			expectErr: false,
 		},
 		{
-			name: "JavaScript code change",
-			oldText: `function add(a, b) {
-  return a + b;
-}`,
-			newText: `const add = (a, b) => {
-  console.log("Adding:", a, b);
-  return a + b;
-};`,
-			expected:  "___not_implemented___",
+			name:      "Empty old text",
+			oldText:   "",
+			newText:   `line 1`,
+			expected:  []PredictedChange{},
 			expectErr: false,
 		},
 		{
-			name:    "Empty old text",
-			oldText: "",
-			newText: `line 1
-line 2`,
-			expected:  "___not_implemented___",
-			expectErr: false,
-		},
-		{
-			name: "Empty new text",
-			oldText: `line 1
-line 2`,
+			name:      "Empty new text",
+			oldText:   `line 1`,
 			newText:   "",
-			expected:  "___not_implemented___",
+			expected:  []PredictedChange{},
 			expectErr: false,
 		},
 		{
 			name:      "Both empty",
 			oldText:   "",
 			newText:   "",
-			expected:  "___not_implemented___",
+			expected:  []PredictedChange{},
 			expectErr: false,
 		},
 		{
@@ -111,7 +144,33 @@ line 2`,
 line 2`,
 			newText: `line 1
 line 2`,
-			expected:  "___not_implemented___",
+			expected:  []PredictedChange{},
+			expectErr: false,
+		},
+		{
+			name: "Change at start of file",
+			oldText: `REMOVE line 1
+line 2
+REMOVE line 3`,
+			newText: `line 1
+line 2
+REMOVE line 3`,
+			expected: []PredictedChange{
+				{Position: 16, TextToRemove: "REMOVE ", Line: 3, Score: 5, MappedPosition: 16},
+			},
+			expectErr: false,
+		},
+		{
+			name: "Change at end of file",
+			oldText: `line 1 SUFFIX
+line 2
+line 3 SUFFIX`,
+			newText: `line 1 SUFFIX
+line 2
+line 3`,
+			expected: []PredictedChange{
+				{Position: 6, TextToRemove: " SUFFIX", Line: 1, Score: 5, MappedPosition: 6},
+			},
 			expectErr: false,
 		},
 	}
@@ -123,8 +182,15 @@ line 2`,
 			if (err != nil) != tt.expectErr {
 				t.Fatalf("PredictNextChanges() error = %v, expectErr %v", err, tt.expectErr)
 			}
-			if !tt.expectErr && got != tt.expected {
-				t.Errorf("PredictNextChanges() = %v, want %v", got, tt.expected)
+			if tt.expectErr {
+				return
+			}
+
+			sortPredictions(got)
+			sortPredictions(tt.expected)
+
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("PredictNextChanges() mismatch (-got +want):\nGot:  %+v\nWant: %+v", got, tt.expected)
 			}
 		})
 	}
@@ -139,8 +205,8 @@ line two
 line 3-smile`
 
 	expectedPredictions := []PredictedChange{
-		{Position: 8, TextToRemove: "-smile", Line: 1, Score: 5, MappedPosition: 8},   // Prediction on line 1
-		{Position: 36, TextToRemove: "-smile", Line: 3, Score: 5, MappedPosition: 30}, // Prediction on line 3
+		{Position: 8, TextToRemove: "-smile", Line: 1, Score: 5, MappedPosition: 8},
+		{Position: 36, TextToRemove: "-smile", Line: 3, Score: 5, MappedPosition: 30},
 	}
 
 	predictions, err := PredictNextChanges(oldText, newText)
@@ -154,17 +220,14 @@ line 3-smile`
 		return
 	}
 
-	// Basic check: Ensure all expected predictions are found, regardless of order.
-	// A more robust check would involve sorting or using a map.
 	foundCount := 0
 	for _, expected := range expectedPredictions {
 		found := false
 		for _, actual := range predictions {
-			// Compare relevant fields. Position is oldText, MappedPosition is newText.
 			if actual.Position == expected.Position &&
 				actual.TextToRemove == expected.TextToRemove &&
 				actual.Line == expected.Line &&
-				actual.Score == expected.Score && // Score might be heuristic, adjust comparison if needed
+				actual.Score == expected.Score &&
 				actual.MappedPosition == expected.MappedPosition {
 				found = true
 				break
