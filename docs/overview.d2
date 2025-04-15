@@ -2,28 +2,30 @@
 # Layout: elk
 
 # Inputs
-oldText: "oldText (string)"
-newText: "newText (string)"
+oldText: "`oldText` (string)"
+newText: "`newText` (string)"
 
 # Processing Steps
 step1: "1. Calculate Diffs\n(using go-diff/diffmatchpatch)" {
   shape: step
 }
-step2: "2. Analyze Diffs\nIdentify first '[charsRemoved]' & '[originalChangeStartPos]' in oldText" {
+step2: "2. Analyze Diffs\nIdentify first `charsRemoved` & its `originalChangeStartPos` in `oldText`" {
   shape: step
 }
-step3: "3. Find & Score Anchors in oldText\n- Find other occurrences of '[charsRemoved]'\n- Exclude original\n- Compare context (prefix/affix on same line)\n- Calculate Score" {
+step3: "3. Find & Score Anchors in `oldText`\n- Find other occurrences of `charsRemoved`\n- Exclude original occurrence\n- Compare line context (prefix/affix)\n- Calculate Score" {
   shape: step
 }
-step4: "4. Generate Predictions\n- Map Anchor.Position (oldText) -> mappedPos (newText) using Diffs\n- Check if '[charsRemoved]' exists at mappedPos\n- Create PredictedChange if exists" {
+step4: "4. Generate Predictions\n- Map Anchor `Position` (oldText) -> `mappedPosition` (newText) using Diffs\n- Check if `charsRemoved` exists at `mappedPosition` in `newText`\n- Create `PredictedChange` if it exists" {
   shape: step
 }
 
-# Outputs
-output_diffs: "Diffs" { shape: document }
-output_analysis: "'[charsRemoved]', '[originalChangeStartPos]'" { shape: document }
-output_anchors: "List[Anchor]" { shape: document }
-output_predictions: "List[PredictedChange]" { shape: document }
+# Intermediate Outputs
+output_diffs: "Diff Operations" { shape: document }
+output_analysis: "Identified `charsRemoved`, `originalChangeStartPos`" { shape: document }
+output_anchors: "List[Anchor] with Scores" { shape: document }
+
+# Final Output
+output_predictions: "List[`PredictedChange`]" { shape: document }
 
 # Connections
 oldText -> step1
@@ -39,7 +41,7 @@ oldText -> step3 # Needed for finding/scoring
 step3 -> output_anchors
 
 output_anchors -> step4
-output_diffs -> step4 # Needed for mapping
-output_analysis -> step4 # Need '[charsRemoved]' to check
-newText -> step4 # Need newText to check within
+output_diffs -> step4 # Needed for mapping positions
+output_analysis -> step4 # Need `charsRemoved`
+newText -> step4 # Need `newText` to check within
 step4 -> output_predictions 
