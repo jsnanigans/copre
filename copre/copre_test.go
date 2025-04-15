@@ -129,3 +129,55 @@ line 2`,
 		})
 	}
 }
+
+func TestPredictNextChanges_RemoveSuffix(t *testing.T) {
+	oldText := `line one-smile
+line two-smile
+line 3-smile`
+	newText := `line one-smile
+line two
+line 3-smile`
+
+	expectedPredictions := []PredictedChange{
+		{Position: 8, TextToRemove: "-smile", Line: 1, Score: 5, MappedPosition: 8},   // Prediction on line 1
+		{Position: 36, TextToRemove: "-smile", Line: 3, Score: 5, MappedPosition: 30}, // Prediction on line 3
+	}
+
+	predictions, err := PredictNextChanges(oldText, newText)
+	if err != nil {
+		t.Fatalf("PredictNextChanges failed: %v", err)
+	}
+
+	if len(predictions) != len(expectedPredictions) {
+		t.Errorf("Expected %d predictions, but got %d", len(expectedPredictions), len(predictions))
+		t.Logf("Got predictions: %+v", predictions)
+		return
+	}
+
+	// Basic check: Ensure all expected predictions are found, regardless of order.
+	// A more robust check would involve sorting or using a map.
+	foundCount := 0
+	for _, expected := range expectedPredictions {
+		found := false
+		for _, actual := range predictions {
+			// Compare relevant fields. Position is oldText, MappedPosition is newText.
+			if actual.Position == expected.Position &&
+				actual.TextToRemove == expected.TextToRemove &&
+				actual.Line == expected.Line &&
+				actual.Score == expected.Score && // Score might be heuristic, adjust comparison if needed
+				actual.MappedPosition == expected.MappedPosition {
+				found = true
+				break
+			}
+		}
+		if found {
+			foundCount++
+		} else {
+			t.Errorf("Expected prediction %+v not found", expected)
+		}
+	}
+
+	if foundCount != len(expectedPredictions) {
+		t.Errorf("Mismatch in predictions. Expected: %+v, Got: %+v", expectedPredictions, predictions)
+	}
+}
