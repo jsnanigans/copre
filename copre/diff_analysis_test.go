@@ -145,20 +145,20 @@ func TestAnalyzeDiffs(t *testing.T) {
 				})
 			}
 
-			gotCharsAdded, gotCharsRemoved, gotPrefix, gotAffix, gotOriginalChangeStartPos := analyzeDiffs(tt.oldText, diffs)
-
-			if gotCharsAdded != tt.wantCharsAdded {
-				t.Errorf("analyzeDiffs() gotCharsAdded = %q, want %q", gotCharsAdded, tt.wantCharsAdded)
-			}
+			gotCharsRemoved, gotOriginalChangeStartPos := analyzeDiffs(tt.oldText, diffs)
+			// Check only the outputs that are still returned
+			// if gotCharsAdded != tt.wantCharsAdded { // Removed
+			// 	t.Errorf("analyzeDiffs() gotCharsAdded = %q, want %q", gotCharsAdded, tt.wantCharsAdded)
+			// }
 			if gotCharsRemoved != tt.wantCharsRemoved {
 				t.Errorf("analyzeDiffs() gotCharsRemoved = %q, want %q", gotCharsRemoved, tt.wantCharsRemoved)
 			}
-			if gotPrefix != tt.wantPrefix {
-				t.Errorf("analyzeDiffs() gotPrefix = %q, want %q", gotPrefix, tt.wantPrefix)
-			}
-			if gotAffix != tt.wantAffix {
-				t.Errorf("analyzeDiffs() gotAffix = %q, want %q", gotAffix, tt.wantAffix)
-			}
+			// if gotPrefix != tt.wantPrefix { // Removed
+			// 	t.Errorf("analyzeDiffs() gotPrefix = %q, want %q", gotPrefix, tt.wantPrefix)
+			// }
+			// if gotAffix != tt.wantAffix { // Removed
+			// 	t.Errorf("analyzeDiffs() gotAffix = %q, want %q", gotAffix, tt.wantAffix)
+			// }
 			if gotOriginalChangeStartPos != tt.wantOriginalChangeStartPos {
 				t.Errorf("analyzeDiffs() gotOriginalChangeStartPos = %d, want %d", gotOriginalChangeStartPos, tt.wantOriginalChangeStartPos)
 			}

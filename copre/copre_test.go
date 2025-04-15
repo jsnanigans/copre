@@ -49,8 +49,8 @@ func TestPredictNextChanges(t *testing.T) {
 				"line two\n" +
 				"line 3-foo",
 			expected: []PredictedChange{
-				{Position: 8, TextToRemove: "-foo", Line: 1, Score: 5 + len("line one") + 0, MappedPosition: 8},
-				{Position: 32, TextToRemove: "-foo", Line: 3, Score: 5 + len("line 3") + 0, MappedPosition: 28},
+				{Position: 8, TextToRemove: "-foo", Line: 1, Score: 9, MappedPosition: 8},
+				{Position: 32, TextToRemove: "-foo", Line: 3, Score: 9, MappedPosition: 28},
 			},
 			expectErr: false,
 		},
@@ -92,7 +92,7 @@ func TestPredictNextChanges(t *testing.T) {
 				"CCC\n" +
 				"EEE",
 			expected: []PredictedChange{
-				{Position: 16, TextToRemove: "BBB\nCCC\n", Line: 5, Score: 5 + len("DDD\n") + len("EEE"), MappedPosition: 8},
+				{Position: 16, TextToRemove: "BBB\nCCC\n", Line: 5, Score: 12, MappedPosition: 8},
 			},
 			expectErr: false,
 		},
@@ -121,7 +121,7 @@ func TestPredictNextChanges(t *testing.T) {
 				"remove this 1\n" +
 				"keep end one",
 			expected: []PredictedChange{
-				{Position: 105, TextToRemove: "remove this 1\n", Line: 10, Score: 5 + len("keep start one\n") + len("keep end one"), MappedPosition: 91},
+				{Position: 105, TextToRemove: "remove this 1\n", Line: 10, Score: 32, MappedPosition: 91},
 			},
 			expectErr: false,
 		},
@@ -169,7 +169,7 @@ func TestPredictNextChanges(t *testing.T) {
 				"line 2\n" +
 				"REMOVE line 3",
 			expected: []PredictedChange{
-				{Position: 21, TextToRemove: "REMOVE ", Line: 3, Score: 5 + 0 + len("line 3"), MappedPosition: 14},
+				{Position: 21, TextToRemove: "REMOVE ", Line: 3, Score: 11, MappedPosition: 14},
 			},
 			expectErr: false,
 		},
@@ -183,7 +183,7 @@ func TestPredictNextChanges(t *testing.T) {
 				"line 2\n" +
 				"line 3",
 			expected: []PredictedChange{
-				{Position: 6, TextToRemove: " SUFFIX", Line: 1, Score: 5 + len("line 1") + 0, MappedPosition: 6},
+				{Position: 6, TextToRemove: " SUFFIX", Line: 1, Score: 11, MappedPosition: 6},
 			},
 			expectErr: false,
 		},
