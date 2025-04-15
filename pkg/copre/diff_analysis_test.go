@@ -40,14 +40,14 @@ func TestAnalyzeDiffs(t *testing.T) {
 			oldText:                    "hello world",
 			newText:                    "hello new world",
 			wantCharsRemoved:           "",
-			wantOriginalChangeStartPos: 5, // Position after "hello"
+			wantOriginalChangeStartPos: 6, // Position after "hello "
 		},
 		{
 			name:                       "Single line deletion",
 			oldText:                    "hello cruel world",
 			newText:                    "hello world",
-			wantCharsRemoved:           " cruel",
-			wantOriginalChangeStartPos: 5, // Position after "hello"
+			wantCharsRemoved:           "cruel ",
+			wantOriginalChangeStartPos: 6, // Position after "hello "
 		},
 		{
 			name:                       "Single line replacement",
