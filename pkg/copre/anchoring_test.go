@@ -55,10 +55,9 @@ func TestFindAndScoreAnchors(t *testing.T) {
 			// Anchor @ 7: Context prefix="prefix ", affix=" and "
 			oldText:                "prefix remove and prefix remove too",
 			searchText:             "remove",
-			originalChangeStartPos: 20, // Second "remove"
+			originalChangeStartPos: 25, // Second "remove"
 			wantAnchors: []Anchor{
-				{Position: 7, Score: 5, Line: 1},
-				{Position: 25, Score: 5, Line: 1},
+				{Position: 7, Score: 13, Line: 1},
 			},
 		},
 		{
@@ -67,10 +66,9 @@ func TestFindAndScoreAnchors(t *testing.T) {
 			// Anchor @ 0: Context prefix="", affix=" affix and "
 			oldText:                "remove affix and remove affix too",
 			searchText:             "remove",
-			originalChangeStartPos: 19, // Second "remove"
+			originalChangeStartPos: 17, // Second "remove"
 			wantAnchors: []Anchor{
-				{Position: 0, Score: 5, Line: 1},
-				{Position: 17, Score: 5, Line: 1},
+				{Position: 0, Score: 12, Line: 1},
 			},
 		},
 		{
@@ -79,10 +77,9 @@ func TestFindAndScoreAnchors(t *testing.T) {
 			// Anchor @ 7: Context prefix="prefix ", affix=" affix and "
 			oldText:                "prefix remove affix and prefix remove affix too",
 			searchText:             "remove",
-			originalChangeStartPos: 27, // Second "remove"
+			originalChangeStartPos: 31, // Second "remove"
 			wantAnchors: []Anchor{
-				{Position: 7, Score: 5, Line: 1},
-				{Position: 31, Score: 5, Line: 1},
+				{Position: 7, Score: 19, Line: 1},
 			},
 		},
 		{
@@ -90,10 +87,9 @@ func TestFindAndScoreAnchors(t *testing.T) {
 			// Original change: remove "remove" at pos 19. Context: prefix=" def", affix="xyz"
 			oldText:                "abcremovexyz and defremovexyz",
 			searchText:             "remove",
-			originalChangeStartPos: 19, // Second "remove"
+			originalChangeStartPos: 20, // Second "remove"
 			wantAnchors: []Anchor{
-				{Position: 3, Score: 5, Line: 1},
-				{Position: 20, Score: 5, Line: 1},
+				{Position: 3, Score: 8, Line: 1},
 			},
 		},
 		{
@@ -115,10 +111,9 @@ func TestFindAndScoreAnchors(t *testing.T) {
 			// Original change: remove "remove this" at pos 23. Context: prefix="\n", affix=""
 			oldText:                "line1\nremove this\nline3\nremove this",
 			searchText:             "remove this",
-			originalChangeStartPos: 23, // Start of second "remove this"
+			originalChangeStartPos: 24, // Start of second "remove this"
 			wantAnchors: []Anchor{
 				{Position: 6, Score: 5, Line: 2},
-				{Position: 24, Score: 5, Line: 4},
 			},
 		},
 		{
@@ -149,9 +144,9 @@ func TestFindAndScoreAnchors(t *testing.T) {
 			// Anchor @ 0: Context: prefix="", affix=" สวัสดี "
 			oldText:                "โลก สวัสดี โลก!", // "World Hello World!" in Thai
 			searchText:             "โลก",             // "World"
-			originalChangeStartPos: 12,                // Byte index of the second "โลก"
+			originalChangeStartPos: 29,                // Byte index of the second "โลก"
 			wantAnchors: []Anchor{
-				{Position: 0, Score: 6, Line: 1},
+				{Position: 0, Score: 5, Line: 1},
 			},
 		},
 	}

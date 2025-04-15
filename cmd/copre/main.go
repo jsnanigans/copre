@@ -8,10 +8,10 @@ import (
 )
 
 func main() {
-	oldText := `line one-smile
+	oldText := `line one-two-smile
 line two-smile
 line 3-smile`
-	newText := `line one-smile
+	newText := `line one-two-smile
 line two
 line 3-smile`
 

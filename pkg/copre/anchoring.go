@@ -118,6 +118,11 @@ func findAndScoreAnchors(oldText, searchText string, originalChangeStartPos int)
 	originalPrefix, originalAffix := getLocalContext(oldText, originalChangeStartPos, len(searchText))
 	log.Printf("DEBUG: Original Context - Prefix: %q, Affix: %q", originalPrefix, originalAffix)
 
+	startPosOutOfBounds := originalChangeStartPos < 0 || originalChangeStartPos > len(oldText)
+	if startPosOutOfBounds {
+		return anchors
+	}
+
 	searchStart := 0
 	for {
 		foundPos := strings.Index(oldText[searchStart:], searchText)
