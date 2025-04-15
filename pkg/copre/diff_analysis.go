@@ -12,7 +12,7 @@ func analyzeDiffs(oldText string, diffs []diffmatchpatch.Diff) (charsRemoved str
 	originalChangeStartPos = -1 // Initialize to -1
 	firstChangePosFound := false
 	firstDeletionBlockEnded := false
-	oldPos := 0
+	// oldPos := 0 // Declared but not used
 
 	// First pass: find the start position of the first change
 	tempOldPos := 0
