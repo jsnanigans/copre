@@ -1,46 +1,87 @@
-# CoPre (Contextual Presence) Anchoring Logic
+# copre (Contextual Presence) - Change Prediction Logic
 
-This Go package provides functionality to find and score "anchors" within a text document. An anchor represents an occurrence of a specific search text (`searchText`) within a larger body of text (`oldText`).
+This Go package analyzes differences between two versions of text (`oldText` and `newText`) to predict subsequent, similar changes. Currently, it focuses on predicting repeated *deletions*.
 
 ## Purpose
 
-The core function, `findAndScoreAnchors` (tested in `pkg/copre/anchoring_test.go`), is designed to locate alternative positions where a given piece of text (`searchText`) exists within a larger text (`oldText`), excluding its original specified position (`originalChangeStartPos`). This is particularly useful in scenarios where text has been modified, and we need to find the *most likely* corresponding location of a piece of text from the original version in the modified version. Examples include applying patches, synchronizing edits in collaborative environments, or refactoring code.
+Given an initial change (represented by the difference between `oldText` and `newText`), the core function `PredictNextChanges` identifies the text that was *removed* during that initial change. It then searches the `oldText` for other occurrences of the same removed text block that exist in a similar immediate context (specifically, on the same line). The goal is to find the most likely locations in the `newText` where the *same deletion* might be applied next, based on the pattern established by the first edit.
+
+This is useful in scenarios like:
+*   **Repetitive Refactoring:** If a user deletes a specific log statement or code pattern in one place, this library can predict where else they might want to delete it.
+*   **Automated Edit Assistance:** Suggesting follow-up edits based on an initial user action.
 
 ## How it Works
 
-1.  **Input:**
-    *   `oldText`: The original, potentially multi-line text content.
-    *   `searchText`: The specific string to search for within `oldText`.
-    *   `originalChangeStartPos`: The starting byte position (0-indexed) of the instance of `searchText` that should *not* be considered as an anchor. This represents the "original" location of the text before some change occurred.
+The primary entry point is `copre.PredictNextChanges(oldText, newText)`.
 
-2.  **Finding Candidates:** The function searches `oldText` for all occurrences of `searchText`.
-
-3.  **Filtering:** It filters out the occurrence that starts exactly at `originalChangeStartPos`.
-
-4.  **Context Extraction:** For the instance at `originalChangeStartPos` and for each remaining candidate anchor, the function extracts the text immediately preceding (prefix) and immediately following (affix) the `searchText`.
-
-5.  **Scoring:** Each candidate anchor is assigned a score based on how well its prefix and affix match the prefix and affix of the original occurrence at `originalChangeStartPos`.
-    *   A base score is awarded for finding an occurrence.
-    *   Additional points are added for matching prefixes and affixes. The amount added depends on the length and similarity of the matching context. Longer and more exact context matches result in higher scores.
-    *   The goal is to find anchors whose surrounding context is most similar to the original context, making them strong candidates for being the "same" piece of text in a potentially modified document.
-
-6.  **Output:** The function returns a slice of `Anchor` structs. Each `Anchor` contains:
-    *   `Position`: The starting byte position (0-indexed) of the anchor within `oldText`.
-    *   `Score`: The calculated similarity score based on context matching. Higher scores indicate a better match.
-    *   `Line`: The 1-indexed line number where the anchor begins.
-
-## Use Cases
-
-*   **Diff/Patch Application:** When applying a change (like deleting or modifying `searchText` at `originalChangeStartPos`) to a slightly different version of `oldText`, the highest-scoring anchor can indicate the correct place to apply the change.
-*   **Collaborative Editing:** Identifying corresponding text segments across different users' versions of a document.
-*   **Code Analysis/Refactoring:** Finding similar code snippets based on content and context.
-
-## Diagram
-
-See the [Anchoring Logic Diagram](docs/anchoring_logic.d2) for a visual representation of the process.
+1.  **Diff Calculation:** It uses `go-diff/diffmatchpatch` to compute the differences between `oldText` and `newText`.
+2.  **Initial Change Analysis:** It analyzes the diffs to identify the first block of text that was removed (`charsRemoved`) and its original starting position (`originalChangeStartPos`) in `oldText`. *(Note: Currently focuses only on the first detected removal)*.
+3.  **Anchor Finding & Scoring:**
+    *   It searches `oldText` for all other occurrences of `charsRemoved`, excluding the one at `originalChangeStartPos`. These potential locations are called "anchors".
+    *   For each anchor and the original occurrence, it extracts the immediate preceding text (prefix) and following text (affix) *on the same line*.
+    *   Anchors are scored based on the similarity of their prefix/affix to the original occurrence's prefix/affix. Higher scores indicate a stronger contextual match.
+4.  **Position Mapping:** Each anchor's position (which is relative to `oldText`) is mapped to its corresponding byte position in `newText` using the diff information. This accounts for how the text shifted due to the initial edits.
+5.  **Prediction Generation:** For each scored anchor, if the `charsRemoved` text exists at the calculated `mappedPosition` in `newText`, a `PredictedChange` object is created. This object represents the suggestion to remove `charsRemoved` at `mappedPosition` in `newText`.
+6.  **Output:** The function returns a slice of `PredictedChange` structs, each containing:
+    *   `Position`: The starting byte position (0-indexed) of the *original anchor* within `oldText`.
+    *   `TextToRemove`: The string that was identified as removed in the initial change and is suggested for removal again.
+    *   `Line`: The 1-indexed line number where the *original anchor* begins in `oldText`.
+    *   `Score`: The calculated similarity score based on context matching. Higher scores indicate a potentially better prediction.
+    *   `MappedPosition`: The calculated starting byte position (0-indexed) in `newText` where the removal is predicted to occur.
 
 ## Usage
 
-```bash
-go run main.go
-``` 
+Import the package and call `PredictNextChanges`:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/jsnanigans/copre/pkg/copre" // Adjust import path as needed
+)
+
+func main() {
+	oldText := `line one-two-smile
+line two-smile
+line 3-smile` // Original text
+
+	newText := `line one-two-smile
+line two // Text changed here, "smile" was removed
+line 3-smile` // Text after the first change
+
+	// Predict where else "smile" might be removed
+	predictions, err := copre.PredictNextChanges(oldText, newText)
+	if err != nil {
+		log.Fatalf("Error predicting changes: %v", err)
+	}
+
+	// The prediction suggests removing "smile" at MappedPosition in newText
+	for _, p := range predictions {
+		fmt.Printf("Prediction: Remove %q at position %d (score: %d) in new text (origin line %d in old text)\n",
+			p.TextToRemove, p.MappedPosition, p.Score, p.Line)
+	}
+
+	// Optionally visualize the predictions
+	visualized := copre.VisualizePredictions(newText, predictions)
+	fmt.Println("\n--- Visualization ---")
+	fmt.Println(visualized)
+	fmt.Println("---------------------")
+}
+```
+
+## Visualization
+
+The package includes a helper function `copre.VisualizePredictions(text, predictions)` which takes the `newText` and the slice of `PredictedChange` structs. It returns a string where the `TextToRemove` for each prediction is highlighted (typically in red using ANSI codes) at its corresponding `MappedPosition`. This provides a quick way to see where the predicted changes would occur.
+
+## Limitations & Future Work
+
+*   Currently focuses only on predicting repeated *deletions* based on the *first* detected deletion in the diff.
+*   Anchor scoring is based on immediate context *on the same line*.
+*   Future work could involve predicting insertions or replacements, considering multiple changes in the initial diff, and refining the scoring mechanism.
+
+## Diagram
+
+![Anchoring Logic Diagram](docs/anchoring_logic.svg)

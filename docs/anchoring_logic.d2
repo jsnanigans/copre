@@ -1,42 +1,45 @@
-\
 # Direction: down
 # Layout: elk
 
-findAndScoreAnchors: {
-  shape: class
-  
-  # Inputs
-  inputs: {
-    oldText: string
-    searchText: string
-    originalChangeStartPos: int
-  }
+# Inputs
+oldText: "oldText (string)"
+newText: "newText (string)"
 
-  # Processing Steps
-  find_occurrences: Find all occurrences of 'searchText' in 'oldText'
-  filter_original: Filter out occurrence at 'originalChangeStartPos'
-  
-  loop_candidates: For each remaining candidate occurrence {
-    determine_pos_line: Determine Position & Line #
-    extract_anchor_context: Extract Prefix & Affix for Anchor
-    extract_original_context: Extract Prefix & Affix for Original Pos
-    compare_context: Compare Anchor Context vs Original Context
-    calculate_score: Calculate Score (higher for better match)
-    create_anchor: Create Anchor {Position, Score, Line}
-  }
+# Processing Steps
+step1: "1. Calculate Diffs\n(using go-diff/diffmatchpatch)" {
+  shape: step
+}
+step2: "2. Analyze Diffs\nIdentify first '[charsRemoved]' & '[originalChangeStartPos]' in oldText" {
+  shape: step
+}
+step3: "3. Find & Score Anchors in oldText\n- Find other occurrences of '[charsRemoved]'\n- Exclude original\n- Compare context (prefix/affix on same line)\n- Calculate Score" {
+  shape: step
+}
+step4: "4. Generate Predictions\n- Map Anchor.Position (oldText) -> mappedPos (newText) using Diffs\n- Check if '[charsRemoved]' exists at mappedPos\n- Create PredictedChange if exists" {
+  shape: step
+}
 
-  # Output
-  output: List[Anchor]
+# Outputs
+output_diffs: "Diffs" { shape: document }
+output_analysis: "'[charsRemoved]', '[originalChangeStartPos]'" { shape: document }
+output_anchors: "List[Anchor]" { shape: document }
+output_predictions: "List[PredictedChange]" { shape: document }
 
-  # Connections
-  inputs -> find_occurrences
-  find_occurrences -> filter_original
-  filter_original -> loop_candidates: Candidates
-  
-  loop_candidates.determine_pos_line -> loop_candidates.create_anchor
-  loop_candidates.extract_anchor_context -> loop_candidates.compare_context
-  loop_candidates.extract_original_context -> loop_candidates.compare_context
-  loop_candidates.compare_context -> loop_candidates.calculate_score
-  loop_candidates.calculate_score -> loop_candidates.create_anchor
-  loop_candidates.create_anchor -> output: Append Anchor
-} 
+# Connections
+oldText -> step1
+newText -> step1
+step1 -> output_diffs
+
+output_diffs -> step2
+oldText -> step2 # Needed for analysis context
+step2 -> output_analysis
+
+output_analysis -> step3
+oldText -> step3 # Needed for finding/scoring
+step3 -> output_anchors
+
+output_anchors -> step4
+output_diffs -> step4 # Needed for mapping
+output_analysis -> step4 # Need '[charsRemoved]' to check
+newText -> step4 # Need newText to check within
+step4 -> output_predictions 
