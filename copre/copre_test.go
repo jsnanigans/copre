@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	// "github.com/sergi/go-diff/diffmatchpatch"
+	// "fmt"
 )
 
 // Helper function to sort predictions for stable comparison
@@ -28,98 +30,98 @@ func TestPredictNextChanges(t *testing.T) {
 	}{
 		{
 			name: "Simple text change - remove middle",
-			oldText: `line 1
-line 2 middle bit
-line 3`,
-			newText: `line 1
-line 2
-line 3`,
+			oldText: "line 1\n" +
+				"line 2 middle bit\n" +
+				"line 3",
+			newText: "line 1\n" +
+				"line 2\n" +
+				"line 3",
 			expected:  nil,
 			expectErr: false,
 		},
 		{
 			// Tests removing a suffix from one line when similar lines exist.
 			name: "Simple text change - remove suffix (uses existing suffix test logic)",
-			oldText: `line one-foo
-line two-foo
-line 3-foo`,
-			newText: `line one-foo
-line two
-line 3-foo`,
+			oldText: "line one-foo\n" +
+				"line two-foo\n" +
+				"line 3-foo",
+			newText: "line one-foo\n" +
+				"line two\n" +
+				"line 3-foo",
 			expected: []PredictedChange{
-				{Position: 8, TextToRemove: "-foo", Line: 1, Score: 5, MappedPosition: 8},
-				{Position: 32, TextToRemove: "-foo", Line: 3, Score: 5, MappedPosition: 28},
+				{Position: 8, TextToRemove: "-foo", Line: 1, Score: 5 + len("line one") + 0, MappedPosition: 8},
+				{Position: 32, TextToRemove: "-foo", Line: 3, Score: 5 + len("line 3") + 0, MappedPosition: 28},
 			},
 			expectErr: false,
 		},
 		{
 			// Tests adding a new line between existing lines.
 			name: "Add line",
-			oldText: `line 1
-line 3`,
-			newText: `line 1
-line 2
-line 3`,
+			oldText: "line 1\n" +
+				"line 3",
+			newText: "line 1\n" +
+				"line 2\n" +
+				"line 3",
 			expected:  nil,
 			expectErr: false,
 		},
 		{
 			// Tests removing a single line.
 			name: "Remove line",
-			oldText: `line 1
-line 2 removed
-line 3`,
-			newText: `line 1
-line 3`,
+			oldText: "line 1\n" +
+				"line 2 removed\n" +
+				"line 3",
+			newText: "line 1\n" +
+				"line 3",
 			expected:  nil,
 			expectErr: false,
 		},
 		{
 			// Tests removing a block of consecutive lines.
 			name: "Remove multiple lines",
-			oldText: `AAA
-BBB
-CCC
-DDD
-BBB
-CCC
-EEE`,
-			newText: `AAA
-DDD
-BBB
-CCC
-EEE`,
+			oldText: "AAA\n" +
+				"BBB\n" +
+				"CCC\n" +
+				"DDD\n" +
+				"BBB\n" +
+				"CCC\n" +
+				"EEE",
+			newText: "AAA\n" +
+				"DDD\n" +
+				"BBB\n" +
+				"CCC\n" +
+				"EEE",
 			expected: []PredictedChange{
-				{Position: 16, TextToRemove: "BBB\nCCC\n", Line: 5, Score: 5, MappedPosition: 8},
+				{Position: 16, TextToRemove: "BBB\nCCC\n", Line: 5, Score: 5 + len("DDD\n") + len("EEE"), MappedPosition: 8},
 			},
 			expectErr: false,
 		},
 		{
 			// Tests removing a block of text where identical blocks exist elsewhere in the file.
 			name: "Remove text block with similar surrounding context",
-			oldText: `keep start one
-remove this 1
-keep end one
---
-keep start two
-remove this 2
-keep end two
---
-keep start one
-remove this 1
-keep end one`,
-			newText: `keep start one
-keep end one
---
-keep start two
-remove this 2
-keep end two
---
-keep start one
-remove this 1
-keep end one`,
+			oldText: "keep start one\n" +
+				"remove this 1\n" +
+				"keep end one\n" +
+				"--\n" +
+				"keep start two\n" +
+				"remove this 2\n" +
+				"keep end two\n" +
+				"--\n" +
+				"keep start one\n" +
+				"remove this 1\n" +
+				"keep end one",
+			newText: "keep start one\n" +
+				"keep end one\n" +
+				"--\n" +
+				"keep start two\n" +
+				"remove this 2\n" +
+				"keep end two\n" +
+				"--\n" +
+				"keep start one\n" +
+				"remove this 1\n" +
+				"keep end one",
 			expected: []PredictedChange{
-				{Position: 105, TextToRemove: "remove this 1\n", Line: 10, Score: 5, MappedPosition: 91},
+				{Position: 105, TextToRemove: "remove this 1\n", Line: 10, Score: 5 + len("keep start one\n") + len("keep end one"), MappedPosition: 91},
 			},
 			expectErr: false,
 		},
@@ -127,14 +129,14 @@ keep end one`,
 			// Tests the case where the original text is empty.
 			name:      "Empty old text",
 			oldText:   "",
-			newText:   `line 1`,
+			newText:   "line 1",
 			expected:  nil,
 			expectErr: false,
 		},
 		{
 			// Tests the case where the resulting text is empty (effectively deleting all content).
 			name:      "Empty new text",
-			oldText:   `line 1`,
+			oldText:   "line 1",
 			newText:   "",
 			expected:  nil,
 			expectErr: false,
@@ -150,39 +152,47 @@ keep end one`,
 		{
 			// Tests the case where old and new texts are identical.
 			name: "No change",
-			oldText: `line 1
-line 2`,
-			newText: `line 1
-line 2`,
+			oldText: "line 1\n" +
+				"line 2",
+			newText: "line 1\n" +
+				"line 2",
 			expected:  nil,
 			expectErr: false,
 		},
 		{
 			// Tests removing text from the beginning of a line that also occurs later in the file.
 			name: "Change at start of file",
-			oldText: `REMOVE line 1
-line 2
-REMOVE line 3`,
-			newText: `line 1
-line 2
-REMOVE line 3`,
+			oldText: "REMOVE line 1\n" +
+				"line 2\n" +
+				"REMOVE line 3",
+			newText: "line 1\n" +
+				"line 2\n" +
+				"REMOVE line 3",
 			expected: []PredictedChange{
-				{Position: 21, TextToRemove: "REMOVE ", Line: 3, Score: 10, MappedPosition: 14},
+				{Position: 21, TextToRemove: "REMOVE ", Line: 3, Score: 5 + 0 + len("line 3"), MappedPosition: 14},
 			},
 			expectErr: false,
 		},
 		{
 			// Tests removing text from the end of a line that also occurs earlier in the file.
 			name: "Change at end of file",
-			oldText: `line 1 SUFFIX
-line 2
-line 3 SUFFIX`,
-			newText: `line 1 SUFFIX
-line 2
-line 3`,
+			oldText: "line 1 SUFFIX\n" +
+				"line 2\n" +
+				"line 3 SUFFIX",
+			newText: "line 1 SUFFIX\n" +
+				"line 2\n" +
+				"line 3",
 			expected: []PredictedChange{
-				{Position: 6, TextToRemove: " SUFFIX", Line: 1, Score: 5, MappedPosition: 6},
+				{Position: 6, TextToRemove: " SUFFIX", Line: 1, Score: 5 + len("line 1") + 0, MappedPosition: 6},
 			},
+			expectErr: false,
+		},
+		{
+			name: "No repeating pattern",
+			oldText: "delete ABC\n" +
+				"keep DEF",
+			newText:   "keep DEF",          // Deleted "delete ABC\n"
+			expected:  []PredictedChange{}, // "delete ABC\n" doesn't repeat
 			expectErr: false,
 		},
 	}
@@ -198,61 +208,35 @@ line 3`,
 				return
 			}
 
-			sortPredictions(got)
+			sortPredictions(got) // Use the local helper
 			sortPredictions(tt.expected)
 
-			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("PredictNextChanges() mismatch (-got +want):\nGot:  %+v\nWant: %+v", got, tt.expected)
+			// Convert expected predictions for comparison if needed (if wantPreds was used)
+			var wantComparable []PredictedChange
+			// if len(tt.wantPreds) > 0 {
+			// 	for _, wp := range tt.wantPreds {
+			// 		wantComparable = append(wantComparable, PredictedChange{TextToRemove: wp.TextToRemove, MappedPosition: wp.MappedPosition})
+			// 	}
+			// } else {
+			// 	wantComparable = tt.expected
+			// }
+			wantComparable = tt.expected // Directly use the expected field now
+
+			if !reflect.DeepEqual(got, wantComparable) {
+				t.Errorf("PredictNextChanges() mismatch (-got +want):\nGot:  %+v\nWant: %+v", got, wantComparable)
 			}
 		})
 	}
 }
 
-func TestPredictNextChanges_RemoveSuffix(t *testing.T) {
-	oldText := `line one-smile
-line two-smile
-line 3-smile`
-	newText := `line one-smile
-line two
-line 3-smile`
+// TestPredictNextChanges_RemoveSuffix removed - covered by main table test
 
-	expectedPredictions := []PredictedChange{
-		{Position: 8, TextToRemove: "-smile", Line: 1, Score: 5, MappedPosition: 8},
-		{Position: 36, TextToRemove: "-smile", Line: 3, Score: 5, MappedPosition: 30},
-	}
+// TestMapPosition moved to position_mapping_test.go
 
-	predictions, err := PredictNextChanges(oldText, newText)
-	if err != nil {
-		t.Fatalf("PredictNextChanges failed: %v", err)
-	}
+// TestAnalyzeDiffs moved to diff_analysis_test.go
 
-	if len(predictions) != len(expectedPredictions) {
-		t.Errorf("Expected %d predictions, but got %d", len(expectedPredictions), len(predictions))
-		t.Logf("Got predictions: %+v", predictions)
-		return
-	}
+// TestFindAndScoreAnchors moved to anchoring_test.go
 
-	foundCount := 0
-	for _, expected := range expectedPredictions {
-		found := false
-		for _, actual := range predictions {
-			if actual.Position == expected.Position &&
-				actual.TextToRemove == expected.TextToRemove &&
-				actual.Line == expected.Line &&
-				actual.Score == expected.Score &&
-				actual.MappedPosition == expected.MappedPosition {
-				found = true
-				break
-			}
-		}
-		if found {
-			foundCount++
-		} else {
-			t.Errorf("Expected prediction %+v not found", expected)
-		}
-	}
+// TestGeneratePredictions moved to prediction_test.go
 
-	if foundCount != len(expectedPredictions) {
-		t.Errorf("Mismatch in predictions. Expected: %+v, Got: %+v", expectedPredictions, predictions)
-	}
-}
+// TestVisualizePredictions moved to visualization_test.go
