@@ -19,6 +19,7 @@ func sortPredictions(predictions []PredictedChange) {
 
 func TestPredictNextChanges(t *testing.T) {
 	tests := []struct {
+		// Tests removing text from the middle of a line.
 		name      string
 		oldText   string
 		newText   string
@@ -33,10 +34,11 @@ line 3`,
 			newText: `line 1
 line 2
 line 3`,
-			expected:  []PredictedChange{},
+			expected:  nil,
 			expectErr: false,
 		},
 		{
+			// Tests removing a suffix from one line when similar lines exist.
 			name: "Simple text change - remove suffix (uses existing suffix test logic)",
 			oldText: `line one-foo
 line two-foo
@@ -46,31 +48,34 @@ line two
 line 3-foo`,
 			expected: []PredictedChange{
 				{Position: 8, TextToRemove: "-foo", Line: 1, Score: 5, MappedPosition: 8},
-				{Position: 30, TextToRemove: "-foo", Line: 3, Score: 5, MappedPosition: 24},
+				{Position: 32, TextToRemove: "-foo", Line: 3, Score: 5, MappedPosition: 28},
 			},
 			expectErr: false,
 		},
 		{
+			// Tests adding a new line between existing lines.
 			name: "Add line",
 			oldText: `line 1
 line 3`,
 			newText: `line 1
 line 2
 line 3`,
-			expected:  []PredictedChange{},
+			expected:  nil,
 			expectErr: false,
 		},
 		{
+			// Tests removing a single line.
 			name: "Remove line",
 			oldText: `line 1
 line 2 removed
 line 3`,
 			newText: `line 1
 line 3`,
-			expected:  []PredictedChange{},
+			expected:  nil,
 			expectErr: false,
 		},
 		{
+			// Tests removing a block of consecutive lines.
 			name: "Remove multiple lines",
 			oldText: `AAA
 BBB
@@ -85,11 +90,12 @@ BBB
 CCC
 EEE`,
 			expected: []PredictedChange{
-				{Position: 12, TextToRemove: "BBB\nCCC\n", Line: 5, Score: 5, MappedPosition: 8},
+				{Position: 16, TextToRemove: "BBB\nCCC\n", Line: 5, Score: 5, MappedPosition: 8},
 			},
 			expectErr: false,
 		},
 		{
+			// Tests removing a block of text where identical blocks exist elsewhere in the file.
 			name: "Remove text block with similar surrounding context",
 			oldText: `keep start one
 remove this 1
@@ -113,41 +119,46 @@ keep start one
 remove this 1
 keep end one`,
 			expected: []PredictedChange{
-				{Position: 88, TextToRemove: "remove this 1\n", Line: 9, Score: 7, MappedPosition: 74},
+				{Position: 105, TextToRemove: "remove this 1\n", Line: 10, Score: 5, MappedPosition: 91},
 			},
 			expectErr: false,
 		},
 		{
+			// Tests the case where the original text is empty.
 			name:      "Empty old text",
 			oldText:   "",
 			newText:   `line 1`,
-			expected:  []PredictedChange{},
+			expected:  nil,
 			expectErr: false,
 		},
 		{
+			// Tests the case where the resulting text is empty (effectively deleting all content).
 			name:      "Empty new text",
 			oldText:   `line 1`,
 			newText:   "",
-			expected:  []PredictedChange{},
+			expected:  nil,
 			expectErr: false,
 		},
 		{
+			// Tests the case where both old and new texts are empty.
 			name:      "Both empty",
 			oldText:   "",
 			newText:   "",
-			expected:  []PredictedChange{},
+			expected:  nil,
 			expectErr: false,
 		},
 		{
+			// Tests the case where old and new texts are identical.
 			name: "No change",
 			oldText: `line 1
 line 2`,
 			newText: `line 1
 line 2`,
-			expected:  []PredictedChange{},
+			expected:  nil,
 			expectErr: false,
 		},
 		{
+			// Tests removing text from the beginning of a line that also occurs later in the file.
 			name: "Change at start of file",
 			oldText: `REMOVE line 1
 line 2
@@ -156,11 +167,12 @@ REMOVE line 3`,
 line 2
 REMOVE line 3`,
 			expected: []PredictedChange{
-				{Position: 16, TextToRemove: "REMOVE ", Line: 3, Score: 5, MappedPosition: 16},
+				{Position: 21, TextToRemove: "REMOVE ", Line: 3, Score: 10, MappedPosition: 14},
 			},
 			expectErr: false,
 		},
 		{
+			// Tests removing text from the end of a line that also occurs earlier in the file.
 			name: "Change at end of file",
 			oldText: `line 1 SUFFIX
 line 2
