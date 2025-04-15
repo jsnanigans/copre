@@ -205,7 +205,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "Start of file",
-			text:       "line1\\nline2",
+			text:       "line1\nline2",
 			pos:        0, // 'l' of line1
 			length:     5, // "line1"
 			wantPrefix: "",
@@ -213,7 +213,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "End of file",
-			text:       "line1\\nline2",
+			text:       "line1\nline2",
 			pos:        6, // 'l' of line2
 			length:     5, // "line2"
 			wantPrefix: "",
@@ -221,7 +221,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "Middle of second line",
-			text:       "line1\\nabc def ghi\\nline3",
+			text:       "line1\nabc def ghi\nline3",
 			pos:        10, // 'd' in "def" on line 2
 			length:     3,  // "def"
 			wantPrefix: "abc ",
@@ -229,7 +229,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "Start of second line",
-			text:       "line1\\nabc def ghi\\nline3",
+			text:       "line1\nabc def ghi\nline3",
 			pos:        6,  // 'a' in "abc" on line 2
 			length:     3,  // "abc"
 			wantPrefix: "", // Start of line 2
@@ -237,7 +237,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "End of second line",
-			text:       "line1\\nabc def ghi\\nline3",
+			text:       "line1\nabc def ghi\nline3",
 			pos:        14, // 'g' in "ghi" on line 2
 			length:     3,  // "ghi"
 			wantPrefix: "abc def ",
@@ -253,7 +253,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "Text with only newline",
-			text:       "\\n",
+			text:       "\n",
 			pos:        0,
 			length:     0,
 			wantPrefix: "",
@@ -277,7 +277,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "Position + Length exactly at end of line",
-			text:       "line1\\nline2",
+			text:       "line1\nline2",
 			pos:        6, // 'l' of line2
 			length:     5, // "line2"
 			wantPrefix: "",
@@ -294,7 +294,7 @@ func TestGetLocalContext(t *testing.T) {
 		{
 			name:       "Unicode characters",
 			text:       "สวัสดี โลก!", // Hello World! in Thai
-			pos:        12,            // Byte index of 'โ' in "โลก"
+			pos:        19,            // Byte index of 'โ' in "โลก"
 			length:     9,             // Byte length of "โลก"
 			wantPrefix: "สวัสดี ",     // Note the space
 			wantAffix:  "!",
@@ -310,14 +310,14 @@ func TestGetLocalContext(t *testing.T) {
 		{
 			name:       "Unicode at end of line",
 			text:       "สวัสดี โลก",
-			pos:        12, // 'โ'
+			pos:        19, // 'โ'
 			length:     9,  // "โลก"
 			wantPrefix: "สวัสดี ",
 			wantAffix:  "",
 		},
 		{
 			name:       "Multiple newlines",
-			text:       "line1\\n\\nline3",
+			text:       "line1\n\nline3",
 			pos:        7, // 'l' of line3
 			length:     5, // "line3"
 			wantPrefix: "",
@@ -325,7 +325,7 @@ func TestGetLocalContext(t *testing.T) {
 		},
 		{
 			name:       "Position on an empty line between lines",
-			text:       "line1\\n\\nline3",
+			text:       "line1\n\nline3",
 			pos:        6, // The second newline character itself
 			length:     0,
 			wantPrefix: "",
