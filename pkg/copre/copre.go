@@ -20,14 +20,14 @@ func PredictNextChanges(oldText, newText string) ([]PredictedChange, error) {
 	log.Printf("DEBUG: Diffs: %s", dmp.DiffPrettyText(diffs))
 
 	// 2. Analyze Diffs to get removed text (first block) and original change start position
-	charsRemoved, originalChangeStartPos := analyzeDiffs(oldText, diffs)
+	charsAdded, charsRemoved, originalChangeStartPos := analyzeDiffs(oldText, diffs)
 
 	// 3. Find and Score Anchors based on removed text and local context comparison
 	// TODO: Adapt anchor finding/scoring for insertions/replacements
-	anchors := findAndScoreAnchors(oldText, charsRemoved, originalChangeStartPos)
+	anchors := findAndScoreAnchors(oldText, charsAdded, charsRemoved, originalChangeStartPos)
 
 	// 4. Generate Predictions from Anchors
-	predictions := generatePredictions(newText, anchors, charsRemoved, diffs)
+	predictions := generatePredictions(newText, anchors, charsAdded, charsRemoved, diffs)
 	// TODO: Add prediction generation logic for insertions/replacements
 
 	// 5. Sort/Filter Predictions (Optional)

@@ -105,11 +105,28 @@ func getLocalContext(text string, pos int, length int) (prefix string, affix str
 	return prefix, affix
 }
 
-// findAndScoreAnchors searches for occurrences of searchText
-// in oldText, skipping the original change location. It scores potential anchors
-// based on matching *local* context around the anchor and the original change.
-func findAndScoreAnchors(oldText, searchText string, originalChangeStartPos int) []Anchor {
+// findAndScoreAnchors searches for potential prediction anchor points in the original text
+// based on the text that was changed (removed or added).
+func findAndScoreAnchors(oldText, charsAdded, charsRemoved string, originalChangeStartPos int) []Anchor {
 	var anchors []Anchor
+	// TODO: Decide how to use charsAdded in anchor finding/scoring.
+	// For now, primarily using charsRemoved for anchor identification.
+	searchText := charsRemoved // Or potentially combine/choose between added/removed
+	if searchText == "" {
+		// If nothing was removed (pure insertion), maybe use charsAdded?
+		// Or maybe anchor finding doesn't make sense for pure insertions?
+		// For now, return no anchors if nothing was removed.
+		// searchText = charsAdded // Example if we decide to search based on added text
+		if charsAdded == "" {
+			log.Printf("DEBUG: No text added or removed, cannot find anchors.")
+			return anchors // Nothing to search for
+		} else {
+			// TODO: Implement anchor finding logic based *only* on added text if needed.
+			log.Printf("DEBUG: Only text added, anchor finding based on added text not yet implemented.")
+			return anchors
+		}
+	}
+
 	if len(searchText) == 0 || originalChangeStartPos == -1 {
 		return anchors
 	}

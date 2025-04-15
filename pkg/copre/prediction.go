@@ -6,11 +6,13 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-// generatePredictions converts scored anchors into concrete PredictedChange objects.
-// It maps the anchor position from oldText to newText and validates that the
-// text to be removed actually exists at the mapped position in the new text.
-func generatePredictions(newText string, anchors []Anchor, charsRemoved string, diffs []diffmatchpatch.Diff) []PredictedChange {
+// generatePredictions creates potential PredictedChange objects based on scored anchors.
+// It maps the anchor position from the old text to the new text and proposes
+// applying the same *type* of change (e.g., deletion) found in the original diff.
+func generatePredictions(newText string, anchors []Anchor, charsAdded, charsRemoved string, diffs []diffmatchpatch.Diff) []PredictedChange {
 	var predictions []PredictedChange
+	log.Printf("DEBUG: Generating predictions. Anchors: %d, CharsAdded: %q, CharsRemoved: %q", len(anchors), charsAdded, charsRemoved)
+
 	if len(charsRemoved) == 0 {
 		return predictions // No deletion predictions if nothing was removed
 	}

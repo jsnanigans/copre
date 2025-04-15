@@ -7,11 +7,12 @@ import (
 )
 
 // analyzeDiffs processes the diffs to find the starting position of the first change
-// and the text removed in the first continuous block of deletions.
-func analyzeDiffs(oldText string, diffs []diffmatchpatch.Diff) (charsRemoved string, originalChangeStartPos int) {
+// and the text removed/added in the first continuous block of deletions/insertions.
+func analyzeDiffs(oldText string, diffs []diffmatchpatch.Diff) (charsAdded, charsRemoved string, originalChangeStartPos int) {
 	originalChangeStartPos = -1 // Initialize to -1
 	firstChangePosFound := false
 	firstDeletionBlockEnded := false
+	firstInsertionBlockEnded := false // Track end of first insertion block
 	// oldPos := 0 // Declared but not used
 
 	// First pass: find the start position of the first change
@@ -28,7 +29,7 @@ func analyzeDiffs(oldText string, diffs []diffmatchpatch.Diff) (charsRemoved str
 		}
 	}
 
-	// Second pass: find the chars removed in the first block of deletions
+	// Second pass: find the chars removed/added in the first block of deletions/insertions
 	firstChangePosFound = false // Reset for this pass
 	for _, diff := range diffs {
 		isChange := diff.Type == diffmatchpatch.DiffInsert || diff.Type == diffmatchpatch.DiffDelete
@@ -47,19 +48,30 @@ func analyzeDiffs(oldText string, diffs []diffmatchpatch.Diff) (charsRemoved str
 			firstDeletionBlockEnded = true
 		}
 
+		if diff.Type == diffmatchpatch.DiffInsert {
+			// Only add to charsAdded if it's part of the first block
+			if firstChangePosFound && !firstInsertionBlockEnded {
+				charsAdded += diff.Text
+			}
+		} else if firstChangePosFound {
+			// If we found the first change and this diff is NOT an insert,
+			// then the first block of insertions (if any) has ended.
+			firstInsertionBlockEnded = true
+		}
+
 		// This part is only needed if we still calculate prefix/affix, which we are removing
 		// if diff.Type != diffmatchpatch.DiffInsert {
 		// 	oldPos += len(diff.Text)
 		// }
 	}
 
-	// log.Printf("DEBUG: Characters added: %q", charsAdded) // Removed
+	log.Printf("DEBUG: Characters added (first block): %q", charsAdded)
 	log.Printf("DEBUG: Characters removed (first block): %q", charsRemoved)
 	// log.Printf("DEBUG: Prefix context: %q", prefix) // Removed
 	// log.Printf("DEBUG: Affix context: %q", affix) // Removed
 	log.Printf("DEBUG: Original change start position: %d", originalChangeStartPos)
 
-	return charsRemoved, originalChangeStartPos
+	return charsAdded, charsRemoved, originalChangeStartPos
 }
 
 // contains checks if a slice contains an integer.

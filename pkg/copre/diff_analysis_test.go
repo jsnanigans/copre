@@ -32,6 +32,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "No change",
 			oldText:                    "hello world",
 			newText:                    "hello world",
+			wantCharsAdded:             "",
 			wantCharsRemoved:           "",
 			wantOriginalChangeStartPos: -1, // No change occurred
 		},
@@ -39,6 +40,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Single line insertion",
 			oldText:                    "hello world",
 			newText:                    "hello new world",
+			wantCharsAdded:             " new",
 			wantCharsRemoved:           "",
 			wantOriginalChangeStartPos: 6, // Position after "hello "
 		},
@@ -46,6 +48,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Single line deletion",
 			oldText:                    "hello cruel world",
 			newText:                    "hello world",
+			wantCharsAdded:             "",
 			wantCharsRemoved:           "cruel ",
 			wantOriginalChangeStartPos: 6, // Position after "hello "
 		},
@@ -53,6 +56,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Single line replacement",
 			oldText:                    "hello old world",
 			newText:                    "hello new world",
+			wantCharsAdded:             "new",
 			wantCharsRemoved:           "old",
 			wantOriginalChangeStartPos: 6, // Position after "hello "
 		},
@@ -60,6 +64,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Multi-line insertion",
 			oldText:                    "line1\nline3",
 			newText:                    "line1\nline2\nline3",
+			wantCharsAdded:             "\nline2",
 			wantCharsRemoved:           "",
 			wantOriginalChangeStartPos: 5, // Position after "line1"
 		},
@@ -67,6 +72,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Multi-line deletion",
 			oldText:                    "line1\nline2\nline3",
 			newText:                    "line1\nline3",
+			wantCharsAdded:             "",
 			wantCharsRemoved:           "\nline2",
 			wantOriginalChangeStartPos: 5, // Position after "line1"
 		},
@@ -74,13 +80,15 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Multi-line replacement",
 			oldText:                    "line1\nlineOLD\nline3",
 			newText:                    "line1\nlineNEW\nline3",
-			wantCharsRemoved:           "lineOLD", // So context is tricky.
-			wantOriginalChangeStartPos: 6,         // Start of "lineOLD"
+			wantCharsAdded:             "lineNEW",
+			wantCharsRemoved:           "lineOLD",
+			wantOriginalChangeStartPos: 6, // Start of "lineOLD"
 		},
 		{
 			name:                       "Change at start",
 			oldText:                    "old world",
 			newText:                    "new world",
+			wantCharsAdded:             "new",
 			wantCharsRemoved:           "old",
 			wantOriginalChangeStartPos: 0,
 		},
@@ -88,6 +96,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Change at end",
 			oldText:                    "hello old",
 			newText:                    "hello new",
+			wantCharsAdded:             "new",
 			wantCharsRemoved:           "old",
 			wantOriginalChangeStartPos: 6,
 		},
@@ -95,6 +104,7 @@ func TestAnalyzeDiffs(t *testing.T) {
 			name:                       "Multiple single line changes",
 			oldText:                    "rm A\nKeep\nrm B",
 			newText:                    "A\nKeep\nB",
+			wantCharsAdded:             "",
 			wantCharsRemoved:           "rm ", // Only captures context of *first* change sequence
 			wantOriginalChangeStartPos: 0,     // Position of first "rm "
 		},
@@ -137,20 +147,14 @@ func TestAnalyzeDiffs(t *testing.T) {
 				})
 			}
 
-			gotCharsRemoved, gotOriginalChangeStartPos := analyzeDiffs(tt.oldText, diffs)
+			gotCharsAdded, gotCharsRemoved, gotOriginalChangeStartPos := analyzeDiffs(tt.oldText, diffs)
 			// Check only the outputs that are still returned
-			// if gotCharsAdded != tt.wantCharsAdded { // Removed
-			// 	t.Errorf("analyzeDiffs() gotCharsAdded = %q, want %q", gotCharsAdded, tt.wantCharsAdded)
-			// }
+			if gotCharsAdded != tt.wantCharsAdded {
+				t.Errorf("analyzeDiffs() gotCharsAdded = %q, want %q", gotCharsAdded, tt.wantCharsAdded)
+			}
 			if gotCharsRemoved != tt.wantCharsRemoved {
 				t.Errorf("analyzeDiffs() gotCharsRemoved = %q, want %q", gotCharsRemoved, tt.wantCharsRemoved)
 			}
-			// if gotPrefix != tt.wantPrefix { // Removed
-			// 	t.Errorf("analyzeDiffs() gotPrefix = %q, want %q", gotPrefix, tt.wantPrefix)
-			// }
-			// if gotAffix != tt.wantAffix { // Removed
-			// 	t.Errorf("analyzeDiffs() gotAffix = %q, want %q", gotAffix, tt.wantAffix)
-			// }
 			if gotOriginalChangeStartPos != tt.wantOriginalChangeStartPos {
 				t.Errorf("analyzeDiffs() gotOriginalChangeStartPos = %d, want %d", gotOriginalChangeStartPos, tt.wantOriginalChangeStartPos)
 			}
