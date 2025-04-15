@@ -84,4 +84,5 @@ The package includes a helper function `copre.VisualizePredictions(text, predict
 
 ## Diagram
 
-![Anchoring Logic Diagram](docs/anchoring_logic.svg)
+
+![Overview](docs/overview.svg)
