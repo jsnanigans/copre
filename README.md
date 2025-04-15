@@ -46,11 +46,10 @@ import (
 func main() {
 	oldText := `line one-two-smile
 line two-smile
-line 3-smile` // Original text
-
+line 3-smile`
 	newText := `line one-two-smile
-line two // Text changed here, "smile" was removed
-line 3-smile` // Text after the first change
+line two
+line 3-smile`
 
 	// Predict where else "smile" might be removed
 	predictions, err := copre.PredictNextChanges(oldText, newText)
@@ -69,6 +68,12 @@ line 3-smile` // Text after the first change
 	fmt.Println("\n--- Visualization ---")
 	fmt.Println(visualized)
 	fmt.Println("---------------------")
+    /*
+--- Predicted Changes Preview ---
+line one-two<red|-smile|>
+line two
+line 3<red|-smile|>
+    /*
 }
 ```
 
